@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fcf1b6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M7 7h10'/%3e%3cpath d='M8 4h8'/%3e%3cpath d='M8 4v3'/%3e%3cpath d='M16 4v3'/%3e%3cpath d='M6 7v9a5 5 0 0 0 5 5h2a5 5 0 0 0 5-5V7'/%3e%3cpath d='M10 7v4a1.5 1.5 0 0 0 3 0V7'/%3e%3c/svg%3e">
+    <title>Honey Fast</title>
+    <style>
+        :root { 
+            --bg: #0b0d14; --panel: #131521; --text: #e0e0e0; --accent: #fcf1b6; --accent-text: #111; --danger: #d9534f; 
+            --input-bg: #1c1f2e; --input-border: #2c3045; --input-focus: #5c6288;  
+            --base-font-size: 14px; --history-width: 250px; 
+        }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #3a3d4f; border-radius: 4px; border: 2px solid var(--bg); }
+        ::-webkit-scrollbar-thumb:hover { background: #5a5e7a; }
+        * { scrollbar-width: thin; scrollbar-color: #3a3d4f transparent; }
+
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; font-size: var(--base-font-size); }
+        
+        .header-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header-title h2 { margin: 0; color: #fff; font-size: 1.2em; display: flex; align-items: center; gap: 10px; }
+        
+        .btn-group { display: flex; gap: 12px; align-items: center; }
+        .icon-btn { background: none; border: none; cursor: pointer; color: #a0a4b8; transition: 0.2s; padding: 4px; display: flex; align-items: center; justify-content: center; }
+        .icon-btn:hover { color: #fff; transform: scale(1.1); }
+        .icon-btn.settings:hover { transform: rotate(90deg); }
+        
+        .sidebar { width: 450px; min-width: 450px; background: var(--panel); border-right: 1px solid var(--input-border); box-sizing: border-box; display: flex; flex-direction: column; }
+        .sidebar-content { flex: 1; padding: 20px; overflow-y: auto; }
+        .sidebar-footer { padding: 15px 20px; background: var(--panel); border-top: 1px solid var(--input-border); z-index: 10; }
+        
+        .main-content { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; position: relative; background: var(--bg); overflow-y: auto; }
+        
+        .history-panel { width: var(--history-width); background: var(--panel); border-left: 1px solid var(--input-border); padding: 15px; box-sizing: border-box; overflow-y: auto; transition: width 0.2s ease, transform 0.3s ease; display: flex; flex-direction: column; position: relative; }
+        .history-thumb { width: 100%; border-radius: 6px; cursor: pointer; opacity: 0.6; transition: 0.2s; border: 2px solid transparent; margin-bottom: 10px; object-fit: cover; }
+        .history-thumb:hover { opacity: 1; border-color: var(--accent); transform: scale(1.02); }
+        .history-close-btn { display: none; background: none; border: none; color: #a0a4b8; position: absolute; top: 12px; right: 12px; cursor: pointer; z-index: 3000; padding: 4px; transition: 0.2s; }
+        .history-close-btn:hover { color: #fff; transform: scale(1.1); }
+        
+        label, .label-row { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; font-size: 0.9em; font-weight: bold; color: #a0a4b8; }
+        
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        input[type="number"], select.native-select, textarea { 
+            width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; 
+            border: 1px solid var(--input-border); background-color: var(--input-bg); 
+            color: #fff; box-sizing: border-box; font-size: 1em;
+            font-family: inherit; line-height: 1.5; transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        input[type="number"]:focus, select.native-select:focus, textarea:focus { border-color: var(--input-focus); outline: none; box-shadow: 0 0 0 2px rgba(92, 98, 136, 0.2); }
+
+        select.native-select { 
+            appearance: none; -webkit-appearance: none; -moz-appearance: none; 
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a0a4b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat; background-position: right 10px center; background-size: 1.2em;
+            padding-right: 35px !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; cursor: pointer;
+        }
+        option { background-color: var(--input-bg); color: #fff; font-family: inherit; font-size: 1em; padding: 10px; }
+        
+        textarea::-webkit-scrollbar-track { background: var(--input-bg); border-radius: 6px; }
+        textarea::-webkit-scrollbar-thumb { background: #3c425e; border: 2px solid var(--input-bg); }
+        textarea { min-height: 60px; max-height: 200px; overflow-y: auto; resize: none; transition: height 0.1s ease; }
+        
+        .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+        
+        .num-wrapper { position: relative; display: flex; align-items: center; width: 100%; margin-top: 5px; }
+        .num-wrapper input { padding-right: 28px; margin-top: 0 !important; } 
+        .num-controls { 
+            position: absolute; right: 5px; top: 50%; transform: translateY(-50%); 
+            display: flex; flex-direction: column; gap: 3px; 
+        }
+        .num-controls button { 
+            background: #2c3045; border: none; color: #a0a4b8; cursor: pointer; 
+            border-radius: 3px; padding: 0; width: 20px; height: 13px; 
+            display: flex; align-items: center; justify-content: center; transition: 0.2s;
+        }
+        .num-controls button:hover { background: var(--accent); color: var(--accent-text); }
+        .num-controls svg { width: 12px; height: 12px; }
+
+        .custom-select-ui { position: relative; width: 100%; margin-top: 5px; }
+        .select-selected { 
+            background-color: var(--input-bg); border: 1px solid var(--input-border); color: #fff; 
+            padding: 10px; border-radius: 6px; cursor: pointer; 
+            display: flex; justify-content: space-between; align-items: center; 
+            font-family: inherit; font-size: 1em; transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .select-selected span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+        .select-selected:hover { border-color: var(--input-focus); }
+        .select-selected.active { border-color: var(--input-focus); box-shadow: 0 0 0 2px rgba(92, 98, 136, 0.2); }
+        .select-selected::after { 
+            content: ''; width: 16px; height: 16px; 
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a0a4b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); 
+            background-repeat: no-repeat; background-position: center; display: inline-block; 
+            flex-shrink: 0; margin-left: 8px;
+        }
+        .select-items { 
+            position: absolute; background-color: var(--input-bg); top: 100%; left: 0; right: 0; z-index: 9999; 
+            border: 1px solid var(--input-border); border-radius: 6px; margin-top: 4px; 
+            max-height: 250px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+        }
+        .select-items::-webkit-scrollbar { width: 6px; }
+        .select-items::-webkit-scrollbar-track { background: var(--input-bg); border-radius: 6px; }
+        .select-items::-webkit-scrollbar-thumb { background: #3c425e; border-radius: 6px; }
+        .select-items div { 
+            color: #fff; padding: 10px 12px; cursor: pointer; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+            font-size: 0.9em; border-bottom: 1px solid #23263b; transition: background 0.1s;
+        }
+        .select-items div:last-child { border-bottom: none; }
+        .select-items div:hover { background-color: var(--input-focus); color: #fff; }
+        .select-hide { display: none; }
+        
+        .preset-select { width: auto; max-width: 140px; padding: 4px 8px; font-size: 0.85em; margin-top: 0; background-color: var(--input-bg); border: 1px solid var(--input-border); border-radius: 4px; }
+
+        button.action-btn { width: 100%; padding: 15px; margin: 0; background: var(--accent); color: var(--accent-text); border: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button.action-btn:hover { opacity: 0.9; }
+        button.action-btn:disabled { background: #555; cursor: not-allowed; }
+        
+        #result-img { max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 8px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: opacity 0.3s; cursor: pointer; }
+        #result-img:hover { opacity: 0.85 !important; }
+
+        .progress-container { width: 50%; max-width: 500px; height: 12px; background: #222; border-radius: 6px; overflow: hidden; margin-top: 20px; display: none; border: 1px solid var(--input-border); }
+        .progress-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.1s linear; }
+        #status-text { margin-top: 10px; font-size: 0.9em; color: #888; display: none; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
+        .modal-content { background: var(--panel); padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; border: 1px solid var(--input-border); box-shadow: 0 15px 40px rgba(0,0,0,0.8); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--input-border); padding-bottom: 10px; margin-bottom: 20px; }
+        .modal-header h3 { margin: 0; }
+        .close-btn { color: #a0a4b8; cursor: pointer; transition: 0.2s; display: flex; }
+        .close-btn:hover { color: #fff; transform: scale(1.1); }
+
+        .setting-row { margin-bottom: 20px; }
+        .setting-row label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: normal; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent); }
+        
+        .danger-btn { width: 100%; padding: 12px; background: var(--danger); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: 0.2s; }
+        .danger-btn:active { transform: scale(0.97); }
+        
+        .autocomplete-wrapper { position: relative; }
+        .autocomplete-list { position: absolute; z-index: 1000; top: 100%; left: 0; right: 0; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 6px; max-height: 200px; overflow-y: auto; display: none; list-style: none; padding: 0; margin: 0; box-shadow: 0 8px 16px rgba(0,0,0,0.8); }
+        .autocomplete-list li { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--input-border); display: flex; justify-content: space-between; font-size: 0.9em; transition: 0.1s; }
+        .autocomplete-list li:hover, .autocomplete-list li.autocomplete-active { background: var(--input-focus); color: #fff; }
+        .tag-0 { color: #aadafa; } .tag-1 { color: #ffbaba; } .tag-3 { color: #d0b0ff; } .tag-4 { color: #a8f0b0; } .tag-5 { color: #e0e0e0; }
+        
+        .mobile-toggle { display: none; background: var(--input-bg); color: #fff; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin-top: 15px; border-radius: 6px; cursor: pointer; border: 1px solid var(--input-border); transition: 0.2s; }
+        .mobile-toggle:hover { background: #25283b; }
+        .mobile-toggle svg { transition: transform 0.3s ease; }
+        .mobile-toggle.open svg { transform: rotate(180deg); }
+        
+        .collapsible-content { display: block; }
+        .mobile-history-btn { display: none; }
+
+        .image-lightbox { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.85); z-index: 4000; justify-content: center; align-items: center; 
+            backdrop-filter: blur(5px); cursor: pointer; 
+        }
+        .image-lightbox img { 
+            max-width: 95vw; max-height: 95vh; border-radius: 8px; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9); object-fit: contain; 
+            cursor: default; 
+        }
+        
+        .image-lightbox-close { 
+            position: absolute; top: 20px; right: 25px; color: #a0a4b8; cursor: pointer; 
+            z-index: 4001; transition: 0.2s; padding: 4px; display: flex;
+        }
+        .image-lightbox-close:hover { transform: scale(1.1); color: #fff; }
+        
+        @media (max-width: 768px) {
+            body { flex-direction: column; height: 100vh; overflow-y: auto; }
+            .mobile-history-btn { display: flex; }
+            
+            .history-panel { 
+                position: fixed; top: 0; right: 0; height: 100vh; z-index: 2500; 
+                width: var(--history-width); max-width: 85vw;
+                transform: translateX(110%);
+                box-shadow: -5px 0 15px rgba(0,0,0,0.8); padding-top: 50px; 
+            }
+            .history-panel.mobile-open { transform: translateX(0); }
+            .history-close-btn { display: flex; }
+            
+            .main-content { order: 1; flex: none; min-height: 350px; padding: 10px; border-bottom: 1px solid var(--input-border); }
+            #result-img { max-height: 300px; }
+            
+            .sidebar { order: 2; width: 100%; min-width: 100%; border-right: none; overflow-y: visible; display: block; }
+            .sidebar-content { padding-bottom: 100px; }
+            .sidebar-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 15px; box-shadow: 0 -5px 15px rgba(0,0,0,0.5); }
+            
+            .mobile-toggle { display: flex; }
+            .collapsible-content { display: none; }
+            .collapsible-content.open { display: block; }
+            
+            .image-lightbox-close { top: 15px; right: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-content">
+        <div class="header-title">
+            <h2>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M7 7h10"></path>
+                    <path d="M8 4h8"></path>
+                    <path d="M8 4v3"></path>
+                    <path d="M16 4v3"></path>
+                    <path d="M6 7v9a5 5 0 0 0 5 5h2a5 5 0 0 0 5-5V7"></path>
+                    <path d="M10 7v4a1.5 1.5 0 0 0 3 0V7"></path>
+                </svg>
+                Honey Client Fast
+            </h2>
+            <div class="btn-group">
+                <button class="icon-btn mobile-history-btn" onclick="toggleMobileHistory(event)">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                </button>
+                <button class="icon-btn settings" onclick="openSettings()">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="autocomplete-wrapper" id="wrap-prompt">
+            <label>Prompt</label>
+            <textarea id="prompt" placeholder="프롬프트를 입력하세요..." oninput="autoResize(this)"></textarea>
+        </div>
+        
+        <div class="autocomplete-wrapper" id="wrap-negative">
+            <label>Negative prompt</label>
+            <textarea id="negative" placeholder="부정 프롬프트를 입력하세요..." oninput="autoResize(this)"></textarea>
+        </div>
+
+        <ul id="autocomplete-results" class="autocomplete-list"></ul>
+
+        <div class="mobile-toggle" id="param-toggle" onclick="toggleParams()">
+            파라미터 설정
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </div>
+
+        <div id="param-content" class="collapsible-content">
+            <label>Diffusion model</label>
+            <select id="unet_name"></select>
+            
+            <label>VAE / Text Encoder</label>
+            <div class="grid-2">
+                <select id="vae_name"></select>
+                <select id="clip_name"></select>
+            </div>
+            
+            <div class="label-row">
+                <span style="white-space: nowrap;">Image Size</span>
+                <div style="width: 145px;">
+                    <select id="preset_select" onchange="applyResolution(this)">
+                        <option value="">-- Presets --</option>
+                        <option value="1024,1024">1024 x 1024 (1:1)</option>
+                        <option value="1152,896">1152 x 896 (9:7)</option>
+                        <option value="896,1152">896 x 1152 (7:9)</option>
+                        <option value="1216,832">1216 x 832 (19:13)</option>
+                        <option value="832,1216">832 x 1216 (13:19)</option>
+                        <option value="1344,768">1344 x 768 (7:4)</option>
+                        <option value="768,1344">768 x 1344 (4:7)</option>
+                        <option value="1536,640">1536 x 640 (12:5)</option>
+                        <option value="640,1536">640 x 1536 (5:12)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="num-wrapper">
+                    <input type="number" id="width" value="832" step="8" placeholder="Width">
+                    <div class="num-controls">
+                        <button type="button" onclick="stepNum('width', 1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                        <button type="button" onclick="stepNum('width', -1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                    </div>
+                </div>
+                <div class="num-wrapper">
+                    <input type="number" id="height" value="1216" step="8" placeholder="Height">
+                    <div class="num-controls">
+                        <button type="button" onclick="stepNum('height', 1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                        <button type="button" onclick="stepNum('height', -1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <label>Steps</label>
+                    <div class="num-wrapper">
+                        <input type="number" id="steps" value="32" step="1">
+                        <div class="num-controls">
+                            <button type="button" onclick="stepNum('steps', 1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                            <button type="button" onclick="stepNum('steps', -1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label>CFG</label>
+                    <div class="num-wrapper">
+                        <input type="number" id="cfg" value="4.5" step="0.1">
+                        <div class="num-controls">
+                            <button type="button" onclick="stepNum('cfg', 1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                            <button type="button" onclick="stepNum('cfg', -1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label>CFG Rescale</label>
+                    <div class="num-wrapper">
+                        <input type="number" id="rescale" value="0.2" step="0.05">
+                        <div class="num-controls">
+                            <button type="button" onclick="stepNum('rescale', 1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                            <button type="button" onclick="stepNum('rescale', -1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label>Batch Size</label>
+                    <div class="num-wrapper">
+                        <input type="number" id="batch_size" value="1" step="1">
+                        <div class="num-controls">
+                            <button type="button" onclick="stepNum('batch_size', 1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                            <button type="button" onclick="stepNum('batch_size', -1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div><label>Sampler</label><select id="sampler_name"></select></div>
+                <div><label>Scheduler</label><select id="scheduler"></select></div>
+                
+                <div style="grid-column: 1 / -1;">
+                    <label>Seed (-1=Rnd)</label>
+                    <div class="num-wrapper">
+                        <input type="number" id="seed" value="-1" step="1">
+                        <div class="num-controls">
+                            <button type="button" onclick="stepNum('seed', 1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                            <button type="button" onclick="stepNum('seed', -1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="sidebar-footer">
+        <button id="gen-btn" class="action-btn" onclick="generateImage()">Generate</button>
+    </div>
+</div>
+
+<div class="main-content">
+    <img id="result-img" alt="Generated Image" onclick="openLightbox(this.src)">
+    <div class="progress-container" id="progress-container"><div class="progress-bar" id="progress-bar"></div></div>
+    <div id="status-text">대기 중...</div>
+</div>
+
+<div class="history-panel" id="history-panel">
+    <button class="history-close-btn" onclick="toggleMobileHistory()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+    </button>
+    <h3 style="margin-top:0; margin-bottom: 15px; color:#fff;">History</h3>
+    <div id="history-gallery" style="display: flex; flex-direction: column;"></div>
+</div>
+
+<div class="modal-overlay" id="settings-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>UI Settings</h3>
+            <span class="close-btn" onclick="closeSettings()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </span>
+        </div>
+        <div class="setting-row"><label><span>Font size</span> <span id="font-val">14px</span></label><input type="range" id="font-slider" min="10" max="22" value="14" oninput="applySettings()"></div>
+        <div class="setting-row" id="setting-row-history"><label><span>History width</span> <span id="history-val">250px</span></label><input type="range" id="history-slider" min="100" max="400" value="250" oninput="applySettings()"></div>
+        <div class="reset-section">
+            <button id="clear-history-btn" class="danger-btn" onclick="clearHistory()" style="background: #e67e22;">CLEAR HISTORY</button>
+            <span style="font-size: 0.8em; color: #aaa; text-align: right; display: block; margin-bottom: 10px;">*keep pressed for 2s</span>
+            <button id="reset-btn" class="danger-btn">RESET SETTINGS</button>
+        </div>
+    </div>
+</div>
+
+<div class="image-lightbox" id="image-lightbox" onclick="closeLightbox(event)">
+    <div class="image-lightbox-close" onclick="closeLightbox(event)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+    </div>
+    <img id="lightbox-img" src="" onclick="event.stopPropagation()">
+</div>
+
+<script>
+    const paramIds = ['prompt', 'negative', 'width', 'height', 'steps', 'cfg', 'rescale', 'sampler_name', 'scheduler', 'batch_size', 'seed', 'unet_name', 'vae_name', 'clip_name'];
+
+    function saveParams() { paramIds.forEach(id => { const el = document.getElementById(id); if (el) localStorage.setItem('honeyfast_param_' + id, el.value); }); }
+    function restoreParams() {
+        paramIds.forEach(id => {
+            const saved = localStorage.getItem('honeyfast_param_' + id); const el = document.getElementById(id);
+            if (saved !== null && el) { el.value = saved; if (id === 'prompt' || id === 'negative') autoResize(el); }
+        });
+    }
+    paramIds.forEach(id => { const el = document.getElementById(id); if (el) { el.addEventListener('change', saveParams); if (el.tagName === 'TEXTAREA') el.addEventListener('input', saveParams); } });
+
+    function stepNum(id, dir) {
+        const el = document.getElementById(id);
+        const step = parseFloat(el.getAttribute('step')) || 1;
+        let val = parseFloat(el.value) || 0;
+        val = (val * 1000 + dir * step * 1000) / 1000;
+        el.value = val;
+        saveParams();
+    }
+
+    function applyResolution(sel) { 
+        if (!sel.value) return; 
+        const [w, h] = sel.value.split(','); 
+        document.getElementById('width').value = w; 
+        document.getElementById('height').value = h; 
+        saveParams(); 
+        
+        sel.value = ""; 
+        const wrapper = sel.nextElementSibling;
+        if (wrapper && wrapper.classList.contains('custom-select-ui')) {
+            wrapper.querySelector('.select-selected span').innerText = sel.options[0].text;
+        }
+    }
+
+    function openLightbox(url) {
+        if(!url) return;
+        const lb = document.getElementById('image-lightbox');
+        document.getElementById('lightbox-img').src = url;
+        lb.style.display = 'flex';
+    }
+    function closeLightbox(e) {
+        if (e) e.stopPropagation();
+        document.getElementById('image-lightbox').style.display = 'none';
+        document.getElementById('lightbox-img').src = "";
+    }
+
+    let historyArray = JSON.parse(localStorage.getItem('honeyfast_history_arr')) || [];
+    function renderHistory() {
+        const gallery = document.getElementById('history-gallery'); gallery.innerHTML = '';
+        if (historyArray.length === 0) { gallery.innerHTML = '<p style="color:#666; font-size:0.9em; margin: 0;">기록이 없습니다.</p>'; return; }
+        historyArray.forEach(url => {
+            const img = document.createElement('img'); img.src = url; img.className = 'history-thumb';
+            img.onclick = () => { 
+                openLightbox(url); 
+                if(window.innerWidth <= 768) toggleMobileHistory(); 
+            };
+            gallery.appendChild(img);
+        });
+    }
+    
+    function addToHistory(url) { historyArray.unshift(url); if (historyArray.length > 50) historyArray.pop(); localStorage.setItem('honeyfast_history_arr', JSON.stringify(historyArray)); renderHistory(); }
+    function clearHistory() { if(confirm("히스토리를 지울까요?")) { historyArray = []; localStorage.setItem('honeyfast_history_arr', JSON.stringify(historyArray)); renderHistory(); closeSettings(); } }
+    
+    function toggleMobileHistory(e) { 
+        if(e) e.stopPropagation(); 
+        document.getElementById('history-panel').classList.toggle('mobile-open'); 
+    }
+
+    function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
+    function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+    function applySettings() {
+        const fSize = document.getElementById('font-slider').value; const hWidth = document.getElementById('history-slider').value;
+        document.getElementById('font-val').innerText = fSize + 'px'; document.getElementById('history-val').innerText = hWidth + 'px';
+        document.documentElement.style.setProperty('--base-font-size', fSize + 'px'); document.documentElement.style.setProperty('--history-width', hWidth + 'px');
+        localStorage.setItem('honeyfast_fontsize', fSize); localStorage.setItem('honeyfast_historywidth', hWidth); 
+    }
+    function loadSettings() {
+        document.getElementById('font-slider').value = localStorage.getItem('honeyfast_fontsize') || 14;
+        document.getElementById('history-slider').value = localStorage.getItem('honeyfast_historywidth') || 250;
+        applySettings();
+    }
+    
+    let pressTimer; const resetBtn = document.getElementById('reset-btn');
+    const startPress = () => { resetBtn.style.background = "#a94442"; pressTimer = setTimeout(() => { localStorage.clear(); location.reload(); }, 2000); };
+    const endPress = () => { resetBtn.style.background = "var(--danger)"; clearTimeout(pressTimer); };
+    resetBtn.addEventListener('mousedown', startPress); resetBtn.addEventListener('mouseup', endPress); resetBtn.addEventListener('mouseleave', endPress); resetBtn.addEventListener('touchstart', startPress); resetBtn.addEventListener('touchend', endPress);
+    function autoResize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+    
+    function toggleParams() { 
+        const content = document.getElementById('param-content'); 
+        const btn = document.getElementById('param-toggle');
+        content.classList.toggle('open'); 
+        if (content.classList.contains('open')) { btn.classList.add('open'); } else { btn.classList.remove('open'); }
+    }
+
+    let tagDatabase = [];
+    async function loadCSVTags() { try { tagDatabase = (await (await fetch('/honeyfast/tags.csv')).text()).split('\n').map(line => { const p = line.split(','); return p.length >= 3 ? { tag: p[0].trim(), type: p[1].trim(), count: p[2].trim() } : null; }).filter(i => i && i.tag); } catch(e) {} }
+    
+    const resultBox = document.getElementById('autocomplete-results'); 
+    let activeTextarea = null;
+    let currentFocus = -1;
+
+    function bindAutocomplete(elId) {
+        const el = document.getElementById(elId);
+        
+        el.addEventListener('focus', () => { 
+            activeTextarea = el; 
+            el.closest('.autocomplete-wrapper').appendChild(resultBox); 
+        });
+        
+        el.addEventListener('input', () => {
+            currentFocus = -1;
+            const val = el.value; const cursor = el.selectionStart; 
+            const start = val.lastIndexOf(',', cursor - 1) + 1; 
+            let end = val.indexOf(',', cursor); 
+            if (end === -1) end = val.length; 
+            const word = val.substring(start, end).trimStart(); 
+            
+            if (word.length < 2) { resultBox.style.display = 'none'; return; } 
+            
+            const matches = tagDatabase.filter(t => t.tag.toLowerCase().includes(word.toLowerCase())).slice(0, 30); 
+            if (matches.length > 0) { 
+                resultBox.innerHTML = matches.map(m => {
+                    const safeTag = m.tag.replace(/"/g, '&quot;');
+                    return `<li class="tag-${m.type}" data-tag="${safeTag}" onclick="insertTag(this.getAttribute('data-tag'), ${start}, ${end})"><span>${m.tag}</span></li>`;
+                }).join(''); 
+                resultBox.style.display = 'block'; 
+            } else { 
+                resultBox.style.display = 'none'; 
+            }
+        });
+
+        el.addEventListener('keydown', function(e) {
+            let items = resultBox.getElementsByTagName('li');
+            if (resultBox.style.display === 'block' && items.length > 0) {
+                if (e.key === 'ArrowDown') { currentFocus++; addActive(items); e.preventDefault(); } 
+                else if (e.key === 'ArrowUp') { currentFocus--; addActive(items); e.preventDefault(); } 
+                else if (e.key === 'Enter') {
+                    e.preventDefault(); 
+                    if (currentFocus > -1) { if (items[currentFocus]) items[currentFocus].click(); } 
+                    else { items[0].click(); }
+                } else if (e.key === 'Escape') { resultBox.style.display = 'none'; }
+            }
+        });
+    }
+
+    function addActive(items) {
+        if (!items) return false;
+        removeActive(items);
+        if (currentFocus >= items.length) currentFocus = 0;
+        if (currentFocus < 0) currentFocus = (items.length - 1);
+        items[currentFocus].classList.add("autocomplete-active");
+        items[currentFocus].scrollIntoView({ block: 'nearest' });
+    }
+    function removeActive(items) { for (let i = 0; i < items.length; i++) items[i].classList.remove("autocomplete-active"); }
+
+    bindAutocomplete('prompt'); 
+    bindAutocomplete('negative');
+    
+    // 🔥 자동완성 삽입 위치 지능형 분기 로직
+    window.insertTag = (tagText, start, end) => { 
+        if(!activeTextarea) return; 
+        const val = activeTextarea.value; 
+        
+        let prefix = val.substring(0, start);
+        if (prefix.length > 0 && !prefix.endsWith(' ')) {
+            prefix += ' ';
+        }
+
+        let suffixRaw = val.substring(end).trimLeft();
+        const isAtEnd = suffixRaw.length === 0;
+
+        if (suffixRaw.startsWith(',')) {
+            suffixRaw = suffixRaw.substring(1).trimLeft();
+        }
+        const suffix = suffixRaw.length > 0 ? ", " + suffixRaw : ", ";
+
+        activeTextarea.value = prefix + tagText + suffix; 
+        
+        const newCursorPos = isAtEnd ? prefix.length + tagText.length + 2 : prefix.length + tagText.length; 
+
+        resultBox.style.display = 'none'; 
+        activeTextarea.focus(); 
+        activeTextarea.setSelectionRange(newCursorPos, newCursorPos);
+        autoResize(activeTextarea); 
+        saveParams(); 
+    };
+
+    function initCustomSelect(selectId) {
+        const selElmnt = document.getElementById(selectId);
+        if (!selElmnt) return;
+        
+        selElmnt.style.display = "none";
+        
+        const oldWrapper = selElmnt.nextElementSibling;
+        if(oldWrapper && oldWrapper.classList.contains('custom-select-ui')) {
+            oldWrapper.remove();
+        }
+
+        const wrapper = document.createElement("div");
+        wrapper.setAttribute("class", "custom-select-ui");
+        if(selectId === 'preset_select') wrapper.style.marginTop = "0";
+        
+        const selectedDiv = document.createElement("div");
+        selectedDiv.setAttribute("class", "select-selected");
+        if(selectId === 'preset_select') selectedDiv.style.padding = "6px 10px";
+        
+        const defaultText = selElmnt.options.length > 0 ? selElmnt.options[selElmnt.selectedIndex].text : "선택된 데이터 없음...";
+        selectedDiv.innerHTML = `<span>${defaultText}</span>`; 
+        wrapper.appendChild(selectedDiv);
+        
+        const itemsDiv = document.createElement("div");
+        itemsDiv.setAttribute("class", "select-items select-hide");
+        
+        if (selElmnt.length === 0) {
+            const emptyDiv = document.createElement("div");
+            emptyDiv.innerHTML = "연결 대기 중...";
+            emptyDiv.style.color = "#666";
+            emptyDiv.style.cursor = "default";
+            itemsDiv.appendChild(emptyDiv);
+        } else {
+            for (let i = 0; i < selElmnt.length; i++) {
+                const optDiv = document.createElement("div");
+                optDiv.innerHTML = selElmnt.options[i].text;
+                optDiv.title = selElmnt.options[i].text; 
+                optDiv.addEventListener("click", function(e) {
+                    selElmnt.selectedIndex = i;
+                    selectedDiv.querySelector('span').innerText = this.innerText;
+                    selElmnt.dispatchEvent(new Event('change')); 
+                    itemsDiv.classList.add("select-hide");
+                    selectedDiv.classList.remove("active");
+                });
+                itemsDiv.appendChild(optDiv);
+            }
+        }
+        
+        wrapper.appendChild(itemsDiv);
+        selElmnt.parentNode.insertBefore(wrapper, selElmnt.nextSibling);
+        
+        selectedDiv.addEventListener("click", function(e) {
+            e.stopPropagation();
+            closeAllSelect(this);
+            itemsDiv.classList.toggle("select-hide");
+            this.classList.toggle("active");
+        });
+    }
+
+    function closeAllSelect(elmnt) {
+        const items = document.getElementsByClassName("select-items");
+        const selected = document.getElementsByClassName("select-selected");
+        for (let i = 0; i < selected.length; i++) {
+            if (elmnt !== selected[i]) {
+                selected[i].classList.remove("active");
+            }
+        }
+        for (let i = 0; i < items.length; i++) {
+            if (elmnt !== items[i].previousElementSibling) {
+                items[i].classList.add("select-hide");
+            }
+        }
+    }
+    
+    document.addEventListener('click', e => { 
+        if (!e.target.closest('.autocomplete-wrapper')) { resultBox.style.display = 'none'; }
+        
+        const histPanel = document.getElementById('history-panel');
+        if (histPanel.classList.contains('mobile-open') && !histPanel.contains(e.target)) {
+            histPanel.classList.remove('mobile-open');
+        }
+
+        closeAllSelect();
+    });
+
+    document.getElementById('settings-modal').addEventListener('click', function(e) {
+        if (e.target === this) { closeSettings(); }
+    });
+
+    function uuidv4() { return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)); }
+    const clientId = uuidv4(); let socket;
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'; socket = new WebSocket(`${protocol}//${window.location.host}/ws?clientId=${clientId}`); socket.binaryType = "arraybuffer";
+        socket.addEventListener('message', (event) => {
+            if (event.data instanceof ArrayBuffer) {
+                const view = new DataView(event.data);
+                if (view.getUint32(0) === 1 || view.getUint32(0) === 2) { 
+                    const blob = new Blob([event.data.slice(8)], { type: "image/jpeg" }); const imgEl = document.getElementById('result-img');
+                    imgEl.src = URL.createObjectURL(blob); imgEl.style.display = 'block'; imgEl.style.opacity = '1.0'; 
+                }
+            } else {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'progress') { 
+                        document.getElementById('progress-bar').style.width = `${(msg.data.value / msg.data.max) * 100}%`; 
+                        document.getElementById('status-text').innerText = `생성 중... (${msg.data.value}/${msg.data.max})`;
+                    } else if (msg.type === 'execution_start') { 
+                        document.getElementById('progress-container').style.display = 'block'; 
+                        document.getElementById('status-text').style.display = 'block'; 
+                        document.getElementById('progress-bar').style.width = '10%'; 
+                        document.getElementById('status-text').innerText = '생성 노드 계산 중...'; 
+                    }
+                } catch(e) {}
+            }
+        });
+        socket.addEventListener('close', () => { setTimeout(connectWebSocket, 3000); });
+    }
+
+    async function generateImage() {
+        saveParams(); const btn = document.getElementById('gen-btn'); btn.disabled = true; btn.innerText = 'Generating...';
+        
+        document.getElementById('progress-container').style.display = 'block'; 
+        document.getElementById('status-text').style.display = 'block'; 
+        document.getElementById('progress-bar').style.width = '0%'; 
+        document.getElementById('status-text').innerText = '서버 대기열 진입 중...';
+
+        const wf = {
+            "10": { "inputs": { "vae_name": document.getElementById('vae_name').value }, "class_type": "VAELoader" },
+            "11": { "inputs": { "clip_name": document.getElementById('clip_name').value, "type": "stable_diffusion", "device": "default" }, "class_type": "CLIPLoader" },
+            "14": { "inputs": { "text": document.getElementById('negative').value, "clip": ["11", 0] }, "class_type": "CLIPTextEncode" },
+            "15": { "inputs": { "text": document.getElementById('prompt').value, "clip": ["11", 0] }, "class_type": "CLIPTextEncode" },
+            "16": { "inputs": { "width": parseInt(document.getElementById('width').value), "height": parseInt(document.getElementById('height').value), "batch_size": parseInt(document.getElementById('batch_size').value) }, "class_type": "EmptyLatentImage" },
+            "17": { "inputs": { "samples": ["775", 0], "vae": ["10", 0] }, "class_type": "VAEDecode" },
+            "20": { "inputs": { "filename_prefix": "HoneyFast", "images": ["17", 0] }, "class_type": "SaveImage" },
+            "21": { "inputs": { "sage_attention": "auto", "allow_compile": true, "model": ["766", 0] }, "class_type": "PathchSageAttentionKJ" },
+            "756": { "inputs": { "reuse_threshold": 0.2, "start_percent": 0.15, "end_percent": 0.95, "verbose": false, "model": ["760", 0] }, "class_type": "EasyCache" },
+            "760": { "inputs": { "backend": "inductor", "fullgraph": false, "mode": "max-autotune-no-cudagraphs", "dynamic": "false", "compile_transformer_blocks_only": true, "dynamo_cache_size_limit": 32, "debug_compile_keys": false, "disable_dynamic_vram": true, "model": ["21", 0] }, "class_type": "TorchCompileModelAdvanced" },
+            "766": { "inputs": { "unet_name": document.getElementById('unet_name').value, "weight_dtype": "default", "model_type": "anima", "on_the_fly_quantization": false, "enable_quarot": false }, "class_type": "OTUNetLoaderW8A8" },
+            "775": { "inputs": { "seed": parseInt(document.getElementById('seed').value) === -1 ? Math.floor(Math.random() * 1e15) : parseInt(document.getElementById('seed').value), "steps": parseInt(document.getElementById('steps').value), "cfg": parseFloat(document.getElementById('cfg').value), "sampler_name": document.getElementById('sampler_name').value, "scheduler": document.getElementById('scheduler').value, "denoise": 1, "model": ["776", 0], "positive": ["15", 0], "negative": ["14", 0], "latent_image": ["16", 0] }, "class_type": "KSampler" },
+            "776": { "inputs": { "multiplier": parseFloat(document.getElementById('rescale').value), "model": ["756", 0] }, "class_type": "RescaleCFG" }
+        };
+        try {
+            const req = await fetch('/prompt', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({prompt: wf, client_id: clientId}) });
+            const res = await req.json(); const prompt_id = res.prompt_id;
+            const chk = setInterval(async () => {
+                try {
+                    const hRes = await (await fetch(`/history/${prompt_id}`)).json();
+                    if (hRes[prompt_id]) {
+                        clearInterval(chk); const outputs = hRes[prompt_id].outputs;
+                        for (let node in outputs) {
+                            if (outputs[node].images) {
+                                const imgInfo = outputs[node].images[0]; const url = `/view?filename=${imgInfo.filename}&subfolder=${imgInfo.subfolder}&type=${imgInfo.type}`;
+                                const imgEl = document.getElementById('result-img'); imgEl.src = url; imgEl.style.display = 'block'; imgEl.style.opacity = '1.0'; 
+                                document.getElementById('progress-container').style.display = 'none'; document.getElementById('status-text').style.display = 'none';
+                                btn.disabled = false; btn.innerText = 'Generate'; addToHistory(url); break;
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }, 1500);
+        } catch(e) { alert("API 요청 실패!"); btn.disabled = false; btn.innerText = 'Generate'; }
+    }
+
+    async function loadComfyData() {
+        initCustomSelect('preset_select'); 
+        ['unet_name', 'vae_name', 'clip_name', 'sampler_name', 'scheduler'].forEach(initCustomSelect);
+        
+        try {
+            const data = await (await fetch('/object_info')).json();
+            
+            const pop = (id, list) => {
+                const sel = document.getElementById(id);
+                sel.innerHTML = '';
+                list.forEach(i => sel.add(new Option(i, i)));
+            };
+            
+            pop('unet_name', data.OTUNetLoaderW8A8.input.required.unet_name[0]); 
+            pop('clip_name', data.CLIPLoader.input.required.clip_name[0]); 
+            pop('vae_name', data.VAELoader.input.required.vae_name[0]);
+            
+            const samplers = data.KSampler.input.required.sampler_name[0]; 
+            const schedulers = data.KSampler.input.required.scheduler[0];
+            pop('sampler_name', samplers); 
+            pop('scheduler', schedulers);
+            
+            restoreParams();
+            if (!document.getElementById('sampler_name').value) document.getElementById('sampler_name').value = samplers.includes('euler') ? 'euler' : samplers[0]; 
+            if (!document.getElementById('scheduler').value) document.getElementById('scheduler').value = schedulers.includes('simple') ? 'simple' : schedulers[0];
+            
+            ['unet_name', 'vae_name', 'clip_name', 'sampler_name', 'scheduler', 'preset_select'].forEach(initCustomSelect);
+        } catch(e) {
+            console.error("데이터를 불러오지 못했습니다.");
+        }
+    }
+
+    window.onload = () => { 
+        loadSettings(); 
+        renderHistory(); 
+        connectWebSocket(); 
+        initCustomSelect('preset_select'); 
+        loadComfyData(); 
+        loadCSVTags(); 
+    };
+</script>
+</body>
+</html>
