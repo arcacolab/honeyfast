@@ -241,7 +241,7 @@
         
         <div class="autocomplete-wrapper" id="wrap-negative">
             <label>Negative prompt</label>
-            <textarea id="negative" placeholder="네거티브 프롬프트를 입력하세요..." oninput="autoResize(this)">low quality, score_1, score_2, lowres, (bad anatomy:2), (bad hands:2), extra digits, fewer digits, extra arms, extra legs, (mutated hands:2), glitch, jpeg artifacts, furry, multiple views, (artist name:2), (artist logo:2), (bad feet:2), official style, official art, old, </textarea>
+            <textarea id="negative" placeholder="부정 프롬프트를 입력하세요..." oninput="autoResize(this)">low quality, score_1, score_2, lowres, (bad anatomy:2), (bad hands:2), extra digits, fewer digits, extra arms, extra legs, (mutated hands:2), glitch, jpeg artifacts, furry, multiple views, (artist name:2), (artist logo:2), (bad feet:2), official style, official art, old, </textarea>
         </div>
 
         <ul id="autocomplete-results" class="autocomplete-list"></ul>
@@ -414,12 +414,15 @@
     const paramIds = ['prompt', 'negative', 'width', 'height', 'steps', 'cfg', 'rescale', 'sampler_name', 'scheduler', 'batch_size', 'seed', 'unet_name', 'vae_name', 'clip_name'];
 
     function saveParams() { paramIds.forEach(id => { const el = document.getElementById(id); if (el) localStorage.setItem('honeyfast_param_' + id, el.value); }); }
-    function restoreParams() {
-        paramIds.forEach(id => {
+    
+    // 파라미터 복구 로직 (에러 방지용으로 loadComfyData 안으로 대부분 편입시킴)
+    function restoreTextParams() {
+        ['prompt', 'negative', 'width', 'height', 'steps', 'cfg', 'rescale', 'batch_size', 'seed'].forEach(id => {
             const saved = localStorage.getItem('honeyfast_param_' + id); const el = document.getElementById(id);
             if (saved !== null && el) { el.value = saved; if (id === 'prompt' || id === 'negative') autoResize(el); }
         });
     }
+    
     paramIds.forEach(id => { const el = document.getElementById(id); if (el) { el.addEventListener('change', saveParams); if (el.tagName === 'TEXTAREA') el.addEventListener('input', saveParams); } });
 
     function stepNum(id, dir) {
@@ -570,7 +573,6 @@
     bindAutocomplete('prompt'); 
     bindAutocomplete('negative');
     
-    // 🔥 자동완성 삽입 위치 지능형 분기 로직
     window.insertTag = (tagText, start, end) => { 
         if(!activeTextarea) return; 
         const val = activeTextarea.value; 
@@ -762,40 +764,55 @@
         } catch(e) { alert("API 요청 실패!"); btn.disabled = false; btn.innerText = 'Generate'; }
     }
 
+    // 완전히 개선된 API 로드 로직
     async function loadComfyData() {
-        initCustomSelect('preset_select'); 
-        ['unet_name', 'vae_name', 'clip_name', 'sampler_name', 'scheduler'].forEach(initCustomSelect);
-        
         try {
             const data = await (await fetch('/object_info')).json();
             
+            // 데이터 뿌려주는 함수: 값이 없으면 강제로 멈추지 않고 빈 옵션으로라도 처리함
             const pop = (id, list) => {
                 const sel = document.getElementById(id);
                 sel.innerHTML = '';
+                if (!list || !Array.isArray(list) || list.length === 0) return;
                 list.forEach(i => sel.add(new Option(i, i)));
+                sel.value = list[0]; // 데이터가 들어오면 무조건 첫 번째 항목을 초기값으로 박아줌
             };
             
-            pop('unet_name', data.OTUNetLoaderW8A8.input.required.unet_name[0]); 
-            pop('clip_name', data.CLIPLoader.input.required.clip_name[0]); 
-            pop('vae_name', data.VAELoader.input.required.vae_name[0]);
+            // 옵셔널 체이닝(?.) 적용: 하나라도 노드가 터져서 로드 안 되면 전체 JS가 먹통되는 현상 방지
+            pop('unet_name', data?.OTUNetLoaderW8A8?.input?.required?.unet_name?.[0]); 
+            pop('clip_name', data?.CLIPLoader?.input?.required?.clip_name?.[0]); 
+            pop('vae_name', data?.VAELoader?.input?.required?.vae_name?.[0]);
             
-            const samplers = data.KSampler.input.required.sampler_name[0]; 
-            const schedulers = data.KSampler.input.required.scheduler[0];
+            const samplers = data?.KSampler?.input?.required?.sampler_name?.[0] || []; 
+            const schedulers = data?.KSampler?.input?.required?.scheduler?.[0] || [];
             pop('sampler_name', samplers); 
             pop('scheduler', schedulers);
             
-            restoreParams();
-            if (!document.getElementById('sampler_name').value) document.getElementById('sampler_name').value = samplers.includes('euler') ? 'euler' : samplers[0]; 
-            if (!document.getElementById('scheduler').value) document.getElementById('scheduler').value = schedulers.includes('simple') ? 'simple' : schedulers[0];
+            // Select 박스 복구 시, 로컬 저장소에 있던 예전 이름이 현재 리스트에 있는지 '확인하고' 덮어씌움 (빈칸 방지)
+            ['unet_name', 'vae_name', 'clip_name', 'sampler_name', 'scheduler'].forEach(id => {
+                const saved = localStorage.getItem('honeyfast_param_' + id);
+                const el = document.getElementById(id);
+                if (saved !== null && el && el.options.length > 0) {
+                    const optionExists = Array.from(el.options).some(opt => opt.value === saved);
+                    if (optionExists) el.value = saved;
+                }
+            });
+
+            if (!document.getElementById('sampler_name').value && samplers.length > 0) document.getElementById('sampler_name').value = samplers.includes('euler') ? 'euler' : samplers[0]; 
+            if (!document.getElementById('scheduler').value && schedulers.length > 0) document.getElementById('scheduler').value = schedulers.includes('simple') ? 'simple' : schedulers[0];
             
+            // UI 리렌더링
             ['unet_name', 'vae_name', 'clip_name', 'sampler_name', 'scheduler', 'preset_select'].forEach(initCustomSelect);
         } catch(e) {
-            console.error("데이터를 불러오지 못했습니다.");
+            console.error("데이터 로드 에러:", e);
+            // 만약 여기서 이 알림이 뜬다면 ComfyUI 벡엔드에서 모델 정보 자체를 못 주고 있다는 뜻.
+            alert("서버에서 모델 정보를 가져오는 데 실패하였습니다. ComfyUI 터미널 로그를 확인해주세요.");
         }
     }
 
     window.onload = () => { 
         loadSettings(); 
+        restoreTextParams();
         renderHistory(); 
         connectWebSocket(); 
         initCustomSelect('preset_select'); 
