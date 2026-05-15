@@ -18,4 +18,12 @@ async def serve_csv(request):
          return web.Response(text="", status=404)
     return web.FileResponse(csv_path)
 
+# JSON 워크플로우 파일을 서빙하기 위한 라우트 추가!
+@server.PromptServer.instance.routes.get("/honeyfast/fast_mod_new.json")
+async def serve_workflow(request):
+    json_path = os.path.join(WEB_DIR, "fast_mod_new.json")
+    if not os.path.exists(json_path):
+        return web.Response(text="fast_mod_new.json 없음", status=404)
+    return web.FileResponse(json_path)
+
 NODE_CLASS_MAPPINGS = {}
