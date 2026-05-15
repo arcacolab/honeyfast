@@ -719,28 +719,77 @@
     }
 
     async function generateImage() {
-        saveParams(); const btn = document.getElementById('gen-btn'); btn.disabled = true; btn.innerText = 'Generating...';
+        saveParams(); 
+        const btn = document.getElementById('gen-btn'); 
+        btn.disabled = true; 
+        btn.innerText = 'Generating...';
         
         document.getElementById('progress-container').style.display = 'block'; 
         document.getElementById('status-text').style.display = 'block'; 
         document.getElementById('progress-bar').style.width = '0%'; 
+        document.getElementById('status-text').innerText = '워크플로우 파일 로드 중...';
+
+        let baseWorkflow;
+        try {
+            // 이제 파이썬 라우트가 추가됐으니 404 안 뜨고 잘 받아올 거야.
+            const wfReq = await fetch('/honeyfast/fast_mod_new.json?r=' + Math.random());
+            if (!wfReq.ok) throw new Error('Network error');
+            baseWorkflow = await wfReq.json();
+        } catch (e) {
+            alert("서버에서 fast_mod_new.json을 불러오지 못했어!");
+            document.getElementById('progress-container').style.display = 'none'; 
+            document.getElementById('status-text').style.display = 'none';
+            btn.disabled = false; btn.innerText = 'Generate';
+            return;
+        }
+
+        const wf = JSON.parse(JSON.stringify(baseWorkflow));
+
+        // 🔥 핵심 마법: 노드 번호가 바뀌어도 class_type으로 멱살 잡고 끌고 옴
+        const findNode = (classType) => Object.keys(wf).find(k => wf[k].class_type === classType);
+
+        try {
+            const vaeNode = findNode("VAELoader");
+            if(vaeNode) wf[vaeNode].inputs.vae_name = document.getElementById('vae_name').value;
+
+            const clipNode = findNode("CLIPLoader");
+            if(clipNode) wf[clipNode].inputs.clip_name = document.getElementById('clip_name').value;
+
+            const unetNode = findNode("OTUNetLoaderW8A8");
+            if(unetNode) wf[unetNode].inputs.unet_name = document.getElementById('unet_name').value;
+
+            const latentNode = findNode("EmptyLatentImage");
+            if(latentNode) {
+                wf[latentNode].inputs.width = parseInt(document.getElementById('width').value);
+                wf[latentNode].inputs.height = parseInt(document.getElementById('height').value);
+                wf[latentNode].inputs.batch_size = parseInt(document.getElementById('batch_size').value);
+            }
+
+            const samplerNode = findNode("KSampler");
+            if(samplerNode) {
+                wf[samplerNode].inputs.seed = parseInt(document.getElementById('seed').value) === -1 ? Math.floor(Math.random() * 1e15) : parseInt(document.getElementById('seed').value);
+                wf[samplerNode].inputs.steps = parseInt(document.getElementById('steps').value);
+                wf[samplerNode].inputs.cfg = parseFloat(document.getElementById('cfg').value);
+                wf[samplerNode].inputs.sampler_name = document.getElementById('sampler_name').value;
+                wf[samplerNode].inputs.scheduler = document.getElementById('scheduler').value;
+
+                // 긍정/부정 텍스트 노드는 KSampler와 연결된 선(Link) 번호를 추적해서 핀포인트로 때려박음
+                const posNodeId = wf[samplerNode].inputs.positive ? wf[samplerNode].inputs.positive[0] : null;
+                const negNodeId = wf[samplerNode].inputs.negative ? wf[samplerNode].inputs.negative[0] : null;
+                
+                if(posNodeId && wf[posNodeId]) wf[posNodeId].inputs.text = document.getElementById('prompt').value;
+                if(negNodeId && wf[negNodeId]) wf[negNodeId].inputs.text = document.getElementById('negative').value;
+            }
+
+            const rescaleNode = findNode("RescaleCFG");
+            if(rescaleNode) wf[rescaleNode].inputs.multiplier = parseFloat(document.getElementById('rescale').value);
+
+        } catch (e) {
+            console.error("UI 파라미터 자동 덮어쓰기 실패:", e);
+        }
+
         document.getElementById('status-text').innerText = '서버 대기열 진입 중...';
 
-        const wf = {
-            "10": { "inputs": { "vae_name": document.getElementById('vae_name').value }, "class_type": "VAELoader" },
-            "11": { "inputs": { "clip_name": document.getElementById('clip_name').value, "type": "stable_diffusion", "device": "default" }, "class_type": "CLIPLoader" },
-            "14": { "inputs": { "text": document.getElementById('negative').value, "clip": ["11", 0] }, "class_type": "CLIPTextEncode" },
-            "15": { "inputs": { "text": document.getElementById('prompt').value, "clip": ["11", 0] }, "class_type": "CLIPTextEncode" },
-            "16": { "inputs": { "width": parseInt(document.getElementById('width').value), "height": parseInt(document.getElementById('height').value), "batch_size": parseInt(document.getElementById('batch_size').value) }, "class_type": "EmptyLatentImage" },
-            "17": { "inputs": { "samples": ["775", 0], "vae": ["10", 0] }, "class_type": "VAEDecode" },
-            "20": { "inputs": { "filename_prefix": "HoneyFast", "images": ["17", 0] }, "class_type": "SaveImage" },
-            "21": { "inputs": { "sage_attention": "auto", "allow_compile": true, "model": ["766", 0] }, "class_type": "PathchSageAttentionKJ" },
-            "756": { "inputs": { "reuse_threshold": 0.2, "start_percent": 0.15, "end_percent": 0.95, "verbose": false, "model": ["760", 0] }, "class_type": "EasyCache" },
-            "760": { "inputs": { "backend": "inductor", "fullgraph": false, "mode": "max-autotune-no-cudagraphs", "dynamic": "false", "compile_transformer_blocks_only": true, "dynamo_cache_size_limit": 32, "debug_compile_keys": false, "disable_dynamic_vram": true, "model": ["21", 0] }, "class_type": "TorchCompileModelAdvanced" },
-            "766": { "inputs": { "unet_name": document.getElementById('unet_name').value, "weight_dtype": "default", "model_type": "anima", "on_the_fly_quantization": false, "enable_convrot": true, "dynamic_lora": false }, "class_type": "OTUNetLoaderW8A8" },
-            "775": { "inputs": { "seed": parseInt(document.getElementById('seed').value) === -1 ? Math.floor(Math.random() * 1e15) : parseInt(document.getElementById('seed').value), "steps": parseInt(document.getElementById('steps').value), "cfg": parseFloat(document.getElementById('cfg').value), "sampler_name": document.getElementById('sampler_name').value, "scheduler": document.getElementById('scheduler').value, "denoise": 1, "model": ["776", 0], "positive": ["15", 0], "negative": ["14", 0], "latent_image": ["16", 0] }, "class_type": "KSampler" },
-            "776": { "inputs": { "multiplier": parseFloat(document.getElementById('rescale').value), "model": ["756", 0] }, "class_type": "RescaleCFG" }
-        };
         try {
             const req = await fetch('/prompt', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({prompt: wf, client_id: clientId}) });
             const res = await req.json(); const prompt_id = res.prompt_id;
@@ -815,6 +864,7 @@
         restoreTextParams();
         renderHistory(); 
         connectWebSocket(); 
+        initCustomSelect('preset_select'); 
         loadComfyData(); 
         loadCSVTags(); 
     };
